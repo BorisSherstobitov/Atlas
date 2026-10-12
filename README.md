@@ -21,7 +21,7 @@ uvicorn app.main:app --reload                        # http://localhost:8000/doc
 ```bash
 cd docs && python -m http.server 5500                # http://localhost:5500
 ```
-Адрес API задаётся в `docs/config.js` (по умолчанию `http://localhost:8000`).
+Адрес API задаётся в `docs/config.js` (сейчас — `https://atlas-api-abpy.onrender.com`; для локального запуска замените на `http://localhost:8000`).
 Без `DATABASE_URL` используется файл `backend/atlas.db` (SQLite).
 
 ## Деплой (бесплатно)

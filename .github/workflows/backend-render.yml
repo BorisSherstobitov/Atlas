@@ -1,0 +1,64 @@
+name: Backend → Render
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", "render.yaml", ".github/workflows/backend-render.yml"]
+  workflow_dispatch:
+
+env:
+  API_URL: ${{ vars.API_URL || 'https://atlas-api-abpy.onrender.com' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt httpx
+      - name: Smoke-тест API (SQLite)
+        env:
+          DATABASE_URL: sqlite:///./ci.db
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from app.main import app
+          with TestClient(app) as c:
+              assert c.get("/").status_code == 200
+              r = c.post("/api/auth/login", json={"email": "student@atlas.dev", "password": "student123"})
+              assert r.status_code == 200, r.text
+              h = {"Authorization": "Bearer " + r.json()["token"]}
+              assert len(c.get("/api/courses", headers=h).json()) >= 3
+              assert len(c.get("/api/courses/popular").json()) == 3
+          print("OK")
+          PY
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Render и так деплоит при каждом push (Auto-Deploy). Хук нужен для принудительного запуска:
+      # Render → сервис → Settings → Deploy Hook → скопировать URL в GitHub Secret RENDER_DEPLOY_HOOK
+      - name: Запустить деплой через Deploy Hook (если задан)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then curl -fsS -X POST "$HOOK" && echo " hook sent"; else echo "RENDER_DEPLOY_HOOK не задан — полагаемся на Auto-Deploy Render"; fi
+
+      - name: Дождаться работоспособности API
+        run: |
+          echo "Ждём ${API_URL} (холодный старт/деплой Render может занять несколько минут)…"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${API_URL%/}/api/courses/popular" || true)
+            echo "попытка $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "API не ответил за 7.5 минут"; exit 1
