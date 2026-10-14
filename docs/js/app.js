@@ -73,6 +73,13 @@ function videoEmbed(url) {
   return `<p><a class="btn" target="_blank" href="${esc(url)}">Открыть видео ↗</a></p>`;
 }
 
+/* ---------- тема оформления ---------- */
+const getTheme = () => document.documentElement.getAttribute('data-theme') || 'dark';
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('atlas_theme', t); } catch { }
+}
+
 /* ---------- навигация ---------- */
 function renderNav() {
   const cur = location.hash.slice(1) || '/';
@@ -83,10 +90,12 @@ function renderNav() {
     <a class="l ${on('/courses')}" href="#/courses">Курсы</a>
     ${isAuthor() ? `<a class="l" href="#/courses?mine=1">Мои курсы</a>` : ''}
     <span class="sp"></span>
+    <button class="btn sm theme-btn" id="theme" title="Сменить тему" aria-label="Сменить тему">${getTheme() === 'dark' ? '☀️' : '🌙'}</button>
     ${S.user ? `<span class="muted">${esc(S.user.full_name)}</span><span class="badge">${isAuthor() ? 'Автор' : 'Студент'}</span>
       <button class="btn sm" id="lo">Выйти</button>`
       : `<a class="btn sm" href="#/login">Войти</a><a class="btn sm primary" href="#/register">Регистрация</a>`}</div>`;
   const lo = $('#lo'); if (lo) lo.onclick = logout;
+  $('#theme').onclick = () => { setTheme(getTheme() === 'dark' ? 'light' : 'dark'); renderNav(); };
 }
 
 /* ---------- карточка курса ---------- */

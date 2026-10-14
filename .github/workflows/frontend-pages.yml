@@ -1,0 +1,45 @@
+name: Frontend → GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", ".github/workflows/frontend-pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # Можно переопределить: Settings → Secrets and variables → Actions → Variables → API_URL
+  API_URL: ${{ vars.API_URL || 'https://atlas-api-abpy.onrender.com' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Подставить адрес API в config.js
+        run: |
+          API="${API_URL%/}"
+          echo "window.ATLAS_API = \"${API}\";" > docs/config.js
+          touch docs/.nojekyll
+          cat docs/config.js
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
